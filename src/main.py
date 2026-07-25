@@ -1,4 +1,4 @@
-"""Starting point for the weather ETL pipeline."""
+"""Run the weather ETL pipeline."""
 
 import json
 from datetime import datetime, timezone
@@ -7,6 +7,8 @@ from typing import Any
 
 from src.api_client import fetch_weather_data
 from src.config import CITIES
+from src.transform import transform_weather_data
+from src.csv_writer import save_to_csv
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -62,42 +64,66 @@ def save_raw_record(
 
 
 def run_pipeline() -> None:
-    """Fetch and save weather information for all configured cities."""
+    """Extract and transform weather data for all configured cities."""
 
     create_raw_data_directory()
 
     print("Starting weather pipeline...\n")
+
+    all_transformed_records: list[dict[str, Any]] = []
 
     for city in CITIES:
         city_name = city["name"]
 
         print(f"Fetching data for {city_name}...")
 
-        weather_data = fetch_weather_data(
-            latitude=city["latitude"],
-            longitude=city["longitude"],
+        try:
+            weather_data = fetch_weather_data(
+                latitude=city["latitude"],
+                longitude=city["longitude"],
+            )
+
+            raw_record = build_raw_record(
+                city=city,
+                weather_data=weather_data,
+            )
+
+            saved_file = save_raw_record(
+                city_name=city_name,
+                raw_record=raw_record,
+            )
+
+            transformed_records = transform_weather_data(
+                city_name=city_name,
+                weather_data=weather_data,
+            )
+
+            all_transformed_records.extend(transformed_records)
+
+            print(f"Saved raw file: {saved_file}")
+            print(f"Transformed records: {len(transformed_records)}")
+
+            if transformed_records:
+                print("First transformed record:")
+                print(transformed_records[0])
+
+            print()
+
+        except Exception as error:
+            print(f"Failed to process {city_name}: {error}\n")
+
+    if all_transformed_records:
+        csv_file = save_to_csv(all_transformed_records)
+
+        print(
+            f"Total transformed records: "
+            f"{len(all_transformed_records)}"
         )
-
-        raw_record = build_raw_record(
-            city=city,
-            weather_data=weather_data,
-        )
-
-        saved_file = save_raw_record(
-            city_name=city_name,
-            raw_record=raw_record,
-        )
-
-        hourly = weather_data.get("hourly", {})
-        timestamps = hourly.get("time", [])
-        temperatures = hourly.get("temperature_2m", [])
-
-        print(f"Number of timestamps: {len(timestamps)}")
-        print(f"Number of temperatures: {len(temperatures)}")
-        print(f"Saved raw file: {saved_file}")
-        print()
-
-    print("Pipeline completed successfully.")
+        print(f"CSV saved to: {csv_file}")
+        print("Pipeline completed successfully.")
+    else:
+        print("No transformed records were created.")
+        print("Pipeline completed with no output.")
 
 
 if __name__ == "__main__":

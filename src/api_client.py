@@ -1,32 +1,67 @@
-"""Functions for retrieving weather data from Open-Meteo."""
+"""Fetch weather data from the Open-Meteo API."""
 
 from typing import Any
 
 import requests
 
-from src.config import OPEN_METEO_BASE_URL
+from src.utils.config import (
+    HOURLY_WEATHER_FIELDS,
+    OPEN_METEO_BASE_URL,
+)
+from src.utils.logger import logger
 
 
 def fetch_weather_data(
     latitude: float,
     longitude: float,
 ) -> dict[str, Any]:
-    """Fetch hourly weather data for one location."""
+    """Fetch hourly weather data for the supplied coordinates."""
 
-    params = {
+    parameters = {
         "latitude": latitude,
         "longitude": longitude,
-        "hourly": "temperature_2m,relative_humidity_2m,precipitation",
-        "timezone": "Asia/Kolkata",
+        "hourly": ",".join(HOURLY_WEATHER_FIELDS),
         "forecast_days": 1,
+        "timezone": "UTC",
     }
 
-    response = requests.get(
-        OPEN_METEO_BASE_URL,
-        params=params,
-        timeout=30,
+    logger.info(
+        "Requesting weather data for latitude=%s, longitude=%s",
+        latitude,
+        longitude,
     )
 
-    response.raise_for_status()
+    try:
+        response = requests.get(
+            OPEN_METEO_BASE_URL,
+            params=parameters,
+            timeout=30,
+        )
 
-    return response.json()
+        response.raise_for_status()
+
+        weather_data: dict[str, Any] = response.json()
+
+        logger.info(
+            "Weather API request completed successfully."
+        )
+
+        return weather_data
+
+    except requests.Timeout:
+        logger.exception(
+            "Weather API request timed out."
+        )
+        raise
+
+    except requests.RequestException:
+        logger.exception(
+            "Weather API request failed."
+        )
+        raise
+
+    except ValueError:
+        logger.exception(
+            "Weather API returned invalid JSON."
+        )
+        raise

@@ -1,8 +1,10 @@
 """Save transformed weather records to CSV."""
 
+
 import csv
 from pathlib import Path
 from typing import Any
+from src.utils.config import PROCESSED_DATA_DIR
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent

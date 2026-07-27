@@ -6,14 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from src.api_client import fetch_weather_data
-from src.config import CITIES
 from src.csv_writer import save_to_csv
 from src.database import load_weather_records
 from src.transform import transform_weather_data
-
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-RAW_DATA_DIR = BASE_DIR / "data" / "raw"
+from src.utils.config import CITIES, RAW_DATA_DIR
+from src.utils.logger import logger
 
 
 def create_raw_data_directory() -> None:
@@ -72,16 +69,19 @@ def save_raw_record(
 def run_pipeline() -> None:
     """Extract, transform, save, and load weather data."""
 
-    create_raw_data_directory()
+    logger.info("Starting Weather ETL Pipeline")
 
-    print("Starting weather ETL pipeline...\n")
+    create_raw_data_directory()
 
     all_transformed_records: list[dict[str, Any]] = []
 
     for city in CITIES:
         city_name = city["name"]
 
-        print(f"Processing {city_name}...")
+        logger.info(
+            "Processing city: %s",
+            city_name,
+        )
 
         try:
             weather_data = fetch_weather_data(
@@ -99,6 +99,11 @@ def run_pipeline() -> None:
                 raw_record=raw_record,
             )
 
+            logger.info(
+                "Raw JSON saved: %s",
+                saved_file.name,
+            )
+
             transformed_records = transform_weather_data(
                 city_name=city_name,
                 weather_data=weather_data,
@@ -108,27 +113,37 @@ def run_pipeline() -> None:
                 transformed_records
             )
 
-            print(f"Raw JSON saved to: {saved_file}")
-            print(
-                f"Records transformed: "
-                f"{len(transformed_records)}"
+            logger.info(
+                "%s records transformed for %s",
+                len(transformed_records),
+                city_name,
             )
 
             if transformed_records:
-                print("First transformed record:")
-                print(transformed_records[0])
+                logger.info(
+                    "Sample transformed record for %s: %s",
+                    city_name,
+                    transformed_records[0],
+                )
+            else:
+                logger.warning(
+                    "No transformed records created for %s",
+                    city_name,
+                )
 
-            print()
-
-        except Exception as error:
-            print(
-                f"Failed to process {city_name}: "
-                f"{error}\n"
+        except Exception:
+            logger.exception(
+                "Failed to process city: %s",
+                city_name,
             )
 
     if not all_transformed_records:
-        print("No transformed records were created.")
-        print("Pipeline completed with no output.")
+        logger.warning(
+            "No transformed records were created."
+        )
+        logger.warning(
+            "Pipeline completed with no output."
+        )
         return
 
     try:
@@ -136,25 +151,32 @@ def run_pipeline() -> None:
             all_transformed_records
         )
 
+        logger.info(
+            "CSV saved to: %s",
+            csv_file,
+        )
+
         loaded_records = load_weather_records(
             all_transformed_records
         )
 
-        print(
-            f"Total transformed records: "
-            f"{len(all_transformed_records)}"
+        logger.info(
+            "Total transformed records: %s",
+            len(all_transformed_records),
         )
-        print(f"CSV saved to: {csv_file}")
-        print(
-            f"Records loaded into PostgreSQL: "
-            f"{loaded_records}"
-        )
-        print("Pipeline completed successfully.")
 
-    except Exception as error:
-        print(
-            "Pipeline failed while saving or loading "
-            f"the transformed data: {error}"
+        logger.info(
+            "%s records loaded into PostgreSQL",
+            loaded_records,
+        )
+
+        logger.info(
+            "Weather ETL Pipeline completed successfully."
+        )
+
+    except Exception:
+        logger.exception(
+            "Pipeline failed while saving or loading transformed data."
         )
 
 

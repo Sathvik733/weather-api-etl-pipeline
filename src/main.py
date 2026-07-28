@@ -11,6 +11,7 @@ from src.database import load_weather_records
 from src.transform import transform_weather_data
 from src.utils.config import CITIES, RAW_DATA_DIR
 from src.utils.logger import logger
+from src.validation import validate_weather_records
 
 
 def create_raw_data_directory() -> None:
@@ -32,7 +33,9 @@ def build_raw_record(
         "city_name": city["name"],
         "requested_latitude": city["latitude"],
         "requested_longitude": city["longitude"],
-        "extracted_at_utc": datetime.now(timezone.utc).isoformat(),
+        "extracted_at_utc": datetime.now(
+            timezone.utc
+        ).isoformat(),
         "source_system": "open_meteo",
         "response_payload": weather_data,
     }
@@ -44,10 +47,16 @@ def save_raw_record(
 ) -> Path:
     """Save one raw API response as a JSON file."""
 
-    timestamp = datetime.now(timezone.utc).strftime(
-        "%Y%m%dT%H%M%SZ"
+    timestamp = datetime.now(
+        timezone.utc
+    ).strftime("%Y%m%dT%H%M%SZ")
+
+    safe_city_name = (
+        city_name
+        .strip()
+        .lower()
+        .replace(" ", "_")
     )
-    safe_city_name = city_name.lower().replace(" ", "_")
 
     file_name = f"{safe_city_name}_{timestamp}.json"
     file_path = RAW_DATA_DIR / file_name
@@ -67,13 +76,15 @@ def save_raw_record(
 
 
 def run_pipeline() -> None:
-    """Extract, transform, save, and load weather data."""
+    """Run the complete weather ETL pipeline."""
 
     logger.info("Starting Weather ETL Pipeline")
 
     create_raw_data_directory()
 
-    all_transformed_records: list[dict[str, Any]] = []
+    all_transformed_records: list[
+        dict[str, Any]
+    ] = []
 
     for city in CITIES:
         city_name = city["name"]
@@ -104,9 +115,11 @@ def run_pipeline() -> None:
                 saved_file.name,
             )
 
-            transformed_records = transform_weather_data(
-                city_name=city_name,
-                weather_data=weather_data,
+            transformed_records = (
+                transform_weather_data(
+                    city_name=city_name,
+                    weather_data=weather_data,
+                )
             )
 
             all_transformed_records.extend(
@@ -147,8 +160,19 @@ def run_pipeline() -> None:
         return
 
     try:
+        validated_records = (
+            validate_weather_records(
+                all_transformed_records
+            )
+        )
+
+        logger.info(
+            "%s records passed validation",
+            len(validated_records),
+        )
+
         csv_file = save_to_csv(
-            all_transformed_records
+            validated_records
         )
 
         logger.info(
@@ -157,12 +181,17 @@ def run_pipeline() -> None:
         )
 
         loaded_records = load_weather_records(
-            all_transformed_records
+            validated_records
         )
 
         logger.info(
             "Total transformed records: %s",
             len(all_transformed_records),
+        )
+
+        logger.info(
+            "Total validated records: %s",
+            len(validated_records),
         )
 
         logger.info(
@@ -176,7 +205,8 @@ def run_pipeline() -> None:
 
     except Exception:
         logger.exception(
-            "Pipeline failed while saving or loading transformed data."
+            "Pipeline failed during validation, "
+            "CSV saving, or PostgreSQL loading."
         )
 
 

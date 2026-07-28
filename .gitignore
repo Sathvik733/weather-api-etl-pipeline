@@ -1,10 +1,12 @@
-.venv/
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
 
-data/raw/*.json
-
-.env
+.venv/
 
 logs/*.log
+
+data/raw/*.json
 data/processed/*.csv

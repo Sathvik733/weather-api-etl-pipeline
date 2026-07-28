@@ -1,24 +1,25 @@
 """Save transformed weather records to CSV."""
 
-
 import csv
 from pathlib import Path
 from typing import Any
+
 from src.utils.config import PROCESSED_DATA_DIR
+from src.utils.logger import logger
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-PROCESSED_DATA_DIR = BASE_DIR / "data" / "processed"
-CSV_FILE_PATH = PROCESSED_DATA_DIR / "weather_hourly.csv"
+CSV_FILE_NAME = "weather_hourly.csv"
 
-
-def create_processed_directory() -> None:
-    """Create the processed-data directory if it does not exist."""
-
-    PROCESSED_DATA_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+CSV_FIELDNAMES = [
+    "city_name",
+    "weather_timestamp",
+    "temperature_2m",
+    "relative_humidity_2m",
+    "precipitation",
+    "wind_speed_10m",
+    "source_system",
+    "extracted_at_utc",
+]
 
 
 def save_to_csv(
@@ -26,30 +27,34 @@ def save_to_csv(
 ) -> Path:
     """Save transformed weather records to a CSV file."""
 
-    create_processed_directory()
-
     if not records:
-        raise ValueError("Cannot save an empty list of weather records.")
+        raise ValueError(
+            "Cannot save an empty list of records to CSV."
+        )
 
-    fieldnames = [
-        "city_name",
-        "weather_timestamp",
-        "temperature_celsius",
-        "relative_humidity_percent",
-        "precipitation_mm",
-    ]
+    PROCESSED_DATA_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    with CSV_FILE_PATH.open(
+    csv_file_path = PROCESSED_DATA_DIR / CSV_FILE_NAME
+
+    with csv_file_path.open(
         mode="w",
-        newline="",
         encoding="utf-8",
+        newline="",
     ) as csv_file:
         writer = csv.DictWriter(
             csv_file,
-            fieldnames=fieldnames,
+            fieldnames=CSV_FIELDNAMES,
         )
 
         writer.writeheader()
         writer.writerows(records)
 
-    return CSV_FILE_PATH
+    logger.info(
+        "Saved %s records to CSV",
+        len(records),
+    )
+
+    return csv_file_path

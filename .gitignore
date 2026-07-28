@@ -4,6 +4,7 @@ venv/
 
 # Environment variables
 .env
+.env.docker
 
 # Python cache
 __pycache__/

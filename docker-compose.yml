@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: weather-postgres
+
+    environment:
+      POSTGRES_DB: weather_etl
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d weather_etl",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    restart: unless-stopped
+
+  weather-etl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: weather-etl
+
+    env_file:
+      - .env.docker
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    volumes:
+      - ./data/raw:/app/data/raw
+      - ./data/processed:/app/data/processed
+      - ./logs:/app/logs
+
+    restart: "no"
+
+volumes:
+  postgres_data:

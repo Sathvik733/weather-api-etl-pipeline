@@ -1,18 +1,15 @@
-"""Central configuration for the Weather ETL pipeline."""
+"""Central configuration for the weather ETL pipeline."""
 
 import os
 from pathlib import Path
-from typing import Any
 
 from dotenv import load_dotenv
 
 
-# Load environment variables from the project-level .env file.
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parents[2]
 
+load_dotenv(BASE_DIR / ".env")
 
-# Project directories
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
@@ -22,7 +19,6 @@ LOG_DIR = BASE_DIR / "logs"
 LOG_FILE = LOG_DIR / "weather_etl.log"
 
 
-# Open-Meteo API configuration
 OPEN_METEO_BASE_URL = (
     "https://api.open-meteo.com/v1/forecast"
 )
@@ -35,11 +31,10 @@ HOURLY_WEATHER_FIELDS = [
 ]
 
 
-# Cities processed by the pipeline
-CITIES: list[dict[str, Any]] = [
+CITIES = [
     {
         "name": "Hyderabad",
-        "latitude": 17.3850,
+        "latitude": 17.385,
         "longitude": 78.4867,
     },
     {
@@ -50,35 +45,30 @@ CITIES: list[dict[str, Any]] = [
 ]
 
 
-def get_database_config() -> dict[str, str]:
-    """Return PostgreSQL configuration from environment variables."""
-
-    required_variables = [
-        "DB_HOST",
-        "DB_PORT",
-        "DB_NAME",
-        "DB_USER",
-        "DB_PASSWORD",
-    ]
-
-    missing_variables = [
-        variable
-        for variable in required_variables
-        if not os.getenv(variable)
-    ]
-
-    if missing_variables:
-        missing_names = ", ".join(missing_variables)
-
-        raise ValueError(
-            "Missing required environment variables: "
-            f"{missing_names}"
-        )
+def get_database_config() -> dict[str, str | int]:
+    """Return PostgreSQL connection settings."""
 
     return {
-        "host": os.environ["DB_HOST"],
-        "port": os.environ["DB_PORT"],
-        "dbname": os.environ["DB_NAME"],
-        "user": os.environ["DB_USER"],
-        "password": os.environ["DB_PASSWORD"],
+        "host": os.getenv(
+            "DB_HOST",
+            "localhost",
+        ),
+        "port": int(
+            os.getenv(
+                "DB_PORT",
+                "5432",
+            )
+        ),
+        "dbname": os.getenv(
+            "DB_NAME",
+            "weather_etl",
+        ),
+        "user": os.getenv(
+            "DB_USER",
+            "postgres",
+        ),
+        "password": os.getenv(
+            "DB_PASSWORD",
+            "postgres",
+        ),
     }

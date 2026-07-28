@@ -1,12 +1,31 @@
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables
+.env
+
+# Python cache
 __pycache__/
 *.py[cod]
+
+# Pytest and coverage
 .pytest_cache/
 .coverage
 htmlcov/
 
-.venv/
+# Logs
+logs/
+*.log
 
-logs/*.log
-
+# Generated data
 data/raw/*.json
 data/processed/*.csv
+
+# IDE
+.vscode/
+.idea/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
